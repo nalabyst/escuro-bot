@@ -32,13 +32,12 @@ async def verificar_status():
     global STATUS_ATUAL, LAST_MESSAGE
     await client.wait_until_ready()
     
-    # 1. Tentar obter o objeto do canal
     canal = client.get_channel(CANAL_ID)
     if not canal:
         print(f"ERRO: Canal com ID {CANAL_ID} não encontrado.")
         return
         
-    # 2. TENTAR DELETAR A MENSAGEM ANTERIOR
+    # 1. TENTAR DELETAR A MENSAGEM ANTERIOR (SE EXISTIR)
     if LAST_MESSAGE:
         try:
             await LAST_MESSAGE.delete()
@@ -51,7 +50,7 @@ async def verificar_status():
             # Erro de permissão, etc.
             print(f"Erro ao deletar mensagem anterior: {e}")
 
-    # 3. OBTER NOVO STATUS
+    # 2. OBTER NOVO STATUS
     try:
         server = JavaServer.lookup(SERVER_IP)
         status = server.status()
@@ -59,12 +58,16 @@ async def verificar_status():
     except Exception:
         novo_status = ":red_circle: DESLIGADO"
 
-    # 4. ENVIAR NOVA MENSAGEM SE O STATUS MUDOU (ou se a última mensagem falhou)
-    if novo_status != STATUS_ATUAL or not LAST_MESSAGE:
+    # 3. VERIFICAR SE HOUVE MUDANÇA ANTES DE ENVIAR
+    if novo_status != STATUS_ATUAL:
+        
+        # O status MUDOU. Atualizamos a variável de controle e enviamos.
         STATUS_ATUAL = novo_status
         
         # Envia a nova mensagem e ARMAZENA o objeto retornado
         new_message = await canal.send(f"# STATUS: {novo_status}")
-        LAST_MESSAGE = new_message # Armazena para a próxima rodada
+        LAST_MESSAGE = new_message # Armazena para ser apagada na próxima rodada
 
+    # Se o status NÃO mudou, o loop termina e não faz nada, 
+    # pois a mensagem anterior já foi deletada.
 # O client.run(TOKEN) não está aqui, ele é chamado pelo api.py
