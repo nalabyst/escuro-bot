@@ -1,0 +1,12 @@
+# Ignorar arquivos de ambiente
+.env
+*.env
+
+# Ignorar cache e configs do Replit
+__pycache__/
+replit.nix
+*.pyc
+
+# Se tiver dependências geradas automaticamente
+.venv/
+venv/
