@@ -37,20 +37,7 @@ async def verificar_status():
         print(f"ERRO: Canal com ID {CANAL_ID} não encontrado.")
         return
         
-    # 1. TENTAR DELETAR A MENSAGEM ANTERIOR (SE EXISTIR)
-    if LAST_MESSAGE:
-        try:
-            await LAST_MESSAGE.delete()
-            print("Mensagem anterior deletada com sucesso.")
-            LAST_MESSAGE = None 
-        except discord.errors.NotFound:
-            print("Mensagem anterior não encontrada para deletar (já foi deletada?).")
-            LAST_MESSAGE = None
-        except Exception as e:
-            # Erro de permissão, etc.
-            print(f"Erro ao deletar mensagem anterior: {e}")
-
-    # 2. OBTER NOVO STATUS
+    # 1. OBTER NOVO STATUS
     try:
         server = JavaServer.lookup(SERVER_IP)
         status = server.status()
@@ -58,16 +45,28 @@ async def verificar_status():
     except Exception:
         novo_status = ":red_circle: DESLIGADO"
 
-    # 3. VERIFICAR SE HOUVE MUDANÇA ANTES DE ENVIAR
+    # 2. VERIFICAR SE HOUVE MUDANÇA ANTES DE AGIR
     if novo_status != STATUS_ATUAL:
         
-        # O status MUDOU. Atualizamos a variável de controle e enviamos.
+        # O status MUDOU. Vamos deletar a antiga e enviar a nova.
+        
+        # 2a. TENTAR DELETAR A MENSAGEM ANTERIOR (SE EXISTIR)
+        if LAST_MESSAGE:
+            try:
+                await LAST_MESSAGE.delete()
+                print("Mensagem anterior deletada com sucesso.")
+            except discord.errors.NotFound:
+                # Não é um erro crítico, a mensagem sumiu por outro motivo
+                print("Mensagem anterior não encontrada para deletar.")
+            except Exception as e:
+                # Erro de permissão, etc.
+                print(f"Erro ao deletar mensagem anterior: {e}")
+
+        # 2b. ENVIAR A NOVA MENSAGEM
         STATUS_ATUAL = novo_status
         
         # Envia a nova mensagem e ARMAZENA o objeto retornado
         new_message = await canal.send(f"# STATUS: {novo_status}")
-        LAST_MESSAGE = new_message # Armazena para ser apagada na próxima rodada
-
-    # Se o status NÃO mudou, o loop termina e não faz nada, 
-    # pois a mensagem anterior já foi deletada.
-# O client.run(TOKEN) não está aqui, ele é chamado pelo api.py
+        LAST_MESSAGE = new_message # Armazena para ser apagada na próxima mudança
+    
+    # Se o status NÃO mudou, nada é feito, e a última mensagem permanece no canal.
