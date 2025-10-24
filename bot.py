@@ -2,7 +2,10 @@ import asyncio
 from mcstatus import JavaServer
 import discord
 from discord.ext import tasks
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 CANAL_ID = 1430520400575463514  # ID do canal onde quer postar
