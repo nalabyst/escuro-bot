@@ -34,6 +34,6 @@ async def verificar_status():
 
     if novo_status != STATUS_ATUAL:
         STATUS_ATUAL = novo_status
-        await canal.send(f"STATUS: {novo_status}")
+        await canal.send(f"# STATUS: {novo_status}")
 
 client.run(TOKEN)
