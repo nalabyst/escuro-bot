@@ -5,17 +5,20 @@ from discord.ext import tasks
 from dotenv import load_dotenv
 import os
 
+# Carrega variáveis de ambiente (útil para testes locais, no Koyeb as variáveis são injetadas)
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+# ATENÇÃO: Use o ID real do canal onde o bot deve postar.
 CANAL_ID = 1430520400575463514 
 
 SERVER_IP = os.getenv("SERVER_IP")
 STATUS_ATUAL = None
 
-# NOVO: Variável global para armazenar a última mensagem enviada pelo bot
+# Variável global para armazenar o objeto da última mensagem enviada pelo bot
 LAST_MESSAGE = None
 
+# Configuração do cliente Discord
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 
@@ -26,34 +29,29 @@ async def on_ready():
 
 @tasks.loop(minutes=1)
 async def verificar_status():
-    global STATUS_ATUAL, LAST_MESSAGE # Inclua LAST_MESSAGE
+    global STATUS_ATUAL, LAST_MESSAGE
     await client.wait_until_ready()
     
+    # 1. Tentar obter o objeto do canal
     canal = client.get_channel(CANAL_ID)
     if not canal:
         print(f"ERRO: Canal com ID {CANAL_ID} não encontrado.")
         return
         
-    # -----------------------------------------------
-    # PASSO 1: TENTAR DELETAR A MENSAGEM ANTERIOR
-    # -----------------------------------------------
+    # 2. TENTAR DELETAR A MENSAGEM ANTERIOR
     if LAST_MESSAGE:
         try:
-            # O .delete() pode ser usado diretamente no objeto Message
             await LAST_MESSAGE.delete()
             print("Mensagem anterior deletada com sucesso.")
-            LAST_MESSAGE = None # Limpa a variável após deletar
+            LAST_MESSAGE = None 
         except discord.errors.NotFound:
-            # Se a mensagem já tiver sido deletada manualmente
             print("Mensagem anterior não encontrada para deletar (já foi deletada?).")
             LAST_MESSAGE = None
         except Exception as e:
-            # Qualquer outro erro de permissão ou API
+            # Erro de permissão, etc.
             print(f"Erro ao deletar mensagem anterior: {e}")
 
-    # -----------------------------------------------
-    # PASSO 2: OBTER NOVO STATUS
-    # -----------------------------------------------
+    # 3. OBTER NOVO STATUS
     try:
         server = JavaServer.lookup(SERVER_IP)
         status = server.status()
@@ -61,19 +59,12 @@ async def verificar_status():
     except Exception:
         novo_status = ":red_circle: DESLIGADO"
 
-    if novo_status != STATUS_ATUAL:
+    # 4. ENVIAR NOVA MENSAGEM SE O STATUS MUDOU (ou se a última mensagem falhou)
+    if novo_status != STATUS_ATUAL or not LAST_MESSAGE:
         STATUS_ATUAL = novo_status
         
-        # -----------------------------------------------
-        # PASSO 3: ENVIAR NOVA MENSAGEM E ARMAZENAR
-        # -----------------------------------------------
-        # O método .send() retorna o objeto Message que acabamos de enviar
+        # Envia a nova mensagem e ARMAZENA o objeto retornado
         new_message = await canal.send(f"# STATUS: {novo_status}")
-        LAST_MESSAGE = new_message # Armazena o objeto para a próxima rodada
-    else:
-        # Se o status não mudou, pode ser que você queira deletar a mensagem antiga
-        # mesmo assim e não fazer nada, ou simplesmente não fazer nada.
-        # Aqui, vamos apenas manter o loop, sem nova mensagem.
-        pass
+        LAST_MESSAGE = new_message # Armazena para a próxima rodada
 
-# ... restante do código ...
+# O client.run(TOKEN) não está aqui, ele é chamado pelo api.py
